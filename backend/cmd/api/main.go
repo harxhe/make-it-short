@@ -1,21 +1,69 @@
 package main
 
 import (
-	"log"
-	"net/http"
+	"context"
+	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/makeitshort/backend/internal/config"
+	"github.com/makeitshort/backend/internal/logger"
+	"github.com/makeitshort/backend/internal/server"
+	"github.com/makeitshort/backend/internal/store"
 )
 
 func main() {
-	r := chi.NewRouter()
-	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok"))
-	})
+	ctx := context.Background()
 
-	log.Println("backend listening on :8080")
-	if err := http.ListenAndServe(":8080", r); err != nil {
-		log.Fatal(err)
+	cfg, err := config.Load()
+	if err != nil {
+		slog.Error("failed to load config", "error", err)
+		os.Exit(1)
 	}
+
+	log := logger.New(cfg.AppEnv)
+
+	postgresPool, err := store.NewPostgresPool(ctx, cfg.DatabaseURL)
+	if err != nil {
+		log.Error("failed to initialize postgres", "error", err)
+		os.Exit(1)
+	}
+
+	redisClient, err := store.NewRedisClient(ctx, cfg.RedisURL)
+	if err != nil {
+		log.Error("failed to initialize redis", "error", err)
+		postgresPool.Close()
+		os.Exit(1)
+	}
+
+	apiServer := server.New(cfg, log, postgresPool, redisClient)
+
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- apiServer.Start()
+	}()
+
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case err := <-serverErr:
+		if err != nil {
+			log.Error("server exited with error", "error", err)
+			os.Exit(1)
+		}
+	case sig := <-signalCh:
+		log.Info("shutdown signal received", "signal", sig.String())
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
+	defer cancel()
+
+	if err := apiServer.Shutdown(shutdownCtx); err != nil {
+		log.Error("graceful shutdown failed", "error", err)
+		os.Exit(1)
+	}
+
+	log.Info("server shutdown complete")
 }

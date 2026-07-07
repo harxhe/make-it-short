@@ -10,6 +10,7 @@ import (
 	"github.com/makeitshort/backend/internal/config"
 	"github.com/makeitshort/backend/internal/logger"
 	"github.com/makeitshort/backend/internal/server"
+	"github.com/makeitshort/backend/internal/shortid"
 	"github.com/makeitshort/backend/internal/store"
 )
 
@@ -23,6 +24,11 @@ func main() {
 	}
 
 	log := logger.New(cfg.AppEnv)
+
+	if err := shortid.Init(1); err != nil {
+		log.Error("failed to initialize shortid generator", "error", err)
+		os.Exit(1)
+	}
 
 	postgresPool, err := store.NewPostgresPool(ctx, cfg.DatabaseURL)
 	if err != nil {

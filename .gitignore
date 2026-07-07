@@ -8,3 +8,4 @@ frontend/vite.config.d.ts
 .DS_Store
 Thumbs.db
 todo.md
+report.md

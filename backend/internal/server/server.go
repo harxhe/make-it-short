@@ -18,9 +18,17 @@ type Server struct {
 	logger     *slog.Logger
 	postgres   *pgxpool.Pool
 	redis      *redis.Client
+	baseURL    string
 }
 
 func New(cfg config.Config, logger *slog.Logger, postgres *pgxpool.Pool, redis *redis.Client) *Server {
+	s := &Server{
+		logger:   logger,
+		postgres: postgres,
+		redis:    redis,
+		baseURL:  cfg.BaseURL,
+	}
+
 	r := chi.NewRouter()
 
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -28,7 +36,9 @@ func New(cfg config.Config, logger *slog.Logger, postgres *pgxpool.Pool, redis *
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	srv := &http.Server{
+	r.Post("/api/shorten", s.handleShorten())
+
+	s.httpServer = &http.Server{
 		Addr:              ":" + cfg.Port,
 		Handler:           r,
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
@@ -37,12 +47,7 @@ func New(cfg config.Config, logger *slog.Logger, postgres *pgxpool.Pool, redis *
 		IdleTimeout:       cfg.IdleTimeout,
 	}
 
-	return &Server{
-		httpServer: srv,
-		logger:     logger,
-		postgres:   postgres,
-		redis:      redis,
-	}
+	return s
 }
 
 func (s *Server) Start() error {

@@ -5,17 +5,17 @@ import "strings"
 const charset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 const base = uint64(len(charset))
 
-// Encode converts a 64-bit integer into a Base62 string
+// converts a 64-bit integer into a Base62 string
 func Encode(id uint64) string {
 	if id == 0 {
 		return string(charset[0])
 	}
 
 	var builder strings.Builder
-	// The maximum length of a base62 encoded uint64 is 11 characters
+	// maximum length of a base62 encoded uint64 is 11 characters
 	builder.Grow(11)
 
-	// Keep dividing by 62 and mapping the remainder to a character
+	// keep dividing by 62 and mapping the remainder to a character
 	var chars []byte
 	for id > 0 {
 		rem := id % base

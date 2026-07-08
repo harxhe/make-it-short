@@ -1,12 +1,14 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/makeitshort/backend/internal/shortid"
 )
 
@@ -41,11 +43,12 @@ func (s *Server) handleShorten() http.HandlerFunc {
 
 		ctx := r.Context()
 		
-		// Write to Postgres
-		_, err = s.postgres.Exec(ctx,
-			"INSERT INTO links (id, original_url) VALUES ($1, $2)",
-			id, req.URL,
-		)
+		// Write to Supabase
+		var results []interface{}
+		err = s.supabase.DB.From("links").Insert(map[string]interface{}{
+			"id":           id,
+			"original_url": req.URL,
+		}).Execute(&results)
 		if err != nil {
 			s.logger.Error("failed to insert link into database", "error", err)
 			s.writeError(w, http.StatusInternalServerError, "internal server error")
@@ -78,4 +81,55 @@ func (s *Server) writeError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(ErrorResponse{Error: message})
+}
+
+func (s *Server) handleRedirect() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		if id == "" {
+			http.NotFound(w, r)
+			return
+		}
+
+		ctx := r.Context()
+
+		// 1. Try fetching from Redis first
+		originalURL, err := s.redis.Get(ctx, "link:"+id).Result()
+		if err == nil && originalURL != "" {
+			http.Redirect(w, r, originalURL, http.StatusMovedPermanently)
+			return
+		}
+
+		// 2. Fallback to Supabase if not in Redis
+		var results []struct {
+			OriginalURL string `json:"original_url"`
+		}
+		
+		err = s.supabase.DB.From("links").Select("original_url").Eq("id", id).Execute(&results)
+		if err != nil {
+			s.logger.Error("failed to query supabase for link", "error", err, "id", id)
+			http.NotFound(w, r) // You could potentially return 500 here, but let's assume it might not exist
+			return
+		}
+
+		if len(results) == 0 || results[0].OriginalURL == "" {
+			http.NotFound(w, r)
+			return
+		}
+
+		originalURL = results[0].OriginalURL
+
+		// 3. Cache it back to Redis asynchronously to avoid blocking the redirect
+		go func(cacheID, url string) {
+			// Using a background context since request context will be cancelled
+			// Use the same 48h TTL as handleShorten
+			err := s.redis.Set(context.Background(), "link:"+cacheID, url, 48*time.Hour).Err()
+			if err != nil {
+				s.logger.Error("failed to cache link in redis after db lookup", "error", err)
+			}
+		}(id, originalURL)
+
+		// 4. Redirect
+		http.Redirect(w, r, originalURL, http.StatusMovedPermanently)
+	}
 }

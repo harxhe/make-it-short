@@ -2,8 +2,6 @@ package config
 
 import (
 	"fmt"
-	"net"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -14,7 +12,8 @@ type Config struct {
 	AppEnv             string
 	Port               string
 	BaseURL            string
-	DatabaseURL        string
+	SupabaseURL        string
+	SupabaseKey        string
 	RedisURL           string
 	RedisMachineIDKey  string
 	CacheTTL           time.Duration
@@ -26,16 +25,12 @@ type Config struct {
 }
 
 func Load() (Config, error) {
-	databaseURL, err := resolveDatabaseURL()
-	if err != nil {
-		return Config{}, err
-	}
-
 	cfg := Config{
 		AppEnv:            getEnv("APP_ENV", "development"),
 		Port:              getEnv("PORT", "8080"),
 		BaseURL:           getEnv("BASE_URL", "http://localhost:8080"),
-		DatabaseURL:       databaseURL,
+		SupabaseURL:       strings.TrimSpace(os.Getenv("SUPABASE_URL")),
+		SupabaseKey:       strings.TrimSpace(os.Getenv("SUPABASE_KEY")),
 		RedisURL:          strings.TrimSpace(os.Getenv("REDIS_URL")),
 		RedisMachineIDKey: getEnv("REDIS_MACHINE_ID_KEY", "makeitshort:node:registration:counter"),
 	}
@@ -76,8 +71,8 @@ func Load() (Config, error) {
 	}
 	cfg.IdleTimeout = time.Duration(idleTimeoutSeconds) * time.Second
 
-	if cfg.DatabaseURL == "" {
-		return Config{}, fmt.Errorf("DATABASE_URL (or SUPABASE_DATABASE_URL / SUPABASE_DB_*) is required")
+	if cfg.SupabaseURL == "" || cfg.SupabaseKey == "" {
+		return Config{}, fmt.Errorf("SUPABASE_URL and SUPABASE_KEY are required")
 	}
 
 	if cfg.RedisURL == "" {
@@ -113,58 +108,4 @@ func getEnvInt(key string, fallback int) (int, error) {
 	return value, nil
 }
 
-func resolveDatabaseURL() (string, error) {
-	if value := strings.TrimSpace(os.Getenv("DATABASE_URL")); value != "" {
-		return value, nil
-	}
 
-	if value := strings.TrimSpace(os.Getenv("SUPABASE_DATABASE_URL")); value != "" {
-		return value, nil
-	}
-
-	return buildSupabaseDatabaseURLFromParts()
-}
-
-func buildSupabaseDatabaseURLFromParts() (string, error) {
-	host := strings.TrimSpace(os.Getenv("SUPABASE_DB_HOST"))
-	port := strings.TrimSpace(os.Getenv("SUPABASE_DB_PORT"))
-	name := strings.TrimSpace(os.Getenv("SUPABASE_DB_NAME"))
-	user := strings.TrimSpace(os.Getenv("SUPABASE_DB_USER"))
-	password := strings.TrimSpace(os.Getenv("SUPABASE_DB_PASSWORD"))
-	sslMode := getEnv("SUPABASE_DB_SSLMODE", "require")
-
-	if host == "" && port == "" && name == "" && user == "" && password == "" {
-		return "", nil
-	}
-
-	missing := make([]string, 0, 5)
-	if host == "" {
-		missing = append(missing, "SUPABASE_DB_HOST")
-	}
-	if port == "" {
-		missing = append(missing, "SUPABASE_DB_PORT")
-	}
-	if name == "" {
-		missing = append(missing, "SUPABASE_DB_NAME")
-	}
-	if user == "" {
-		missing = append(missing, "SUPABASE_DB_USER")
-	}
-	if password == "" {
-		missing = append(missing, "SUPABASE_DB_PASSWORD")
-	}
-
-	if len(missing) > 0 {
-		return "", fmt.Errorf("incomplete Supabase DB config, missing: %s", strings.Join(missing, ", "))
-	}
-
-	databaseURL := &url.URL{
-		Scheme:   "postgresql",
-		Host:     net.JoinHostPort(host, port),
-		Path:     "/" + name,
-		RawQuery: "sslmode=" + url.QueryEscape(sslMode),
-	}
-	databaseURL.User = url.UserPassword(user, password)
-
-	return databaseURL.String(), nil
-}

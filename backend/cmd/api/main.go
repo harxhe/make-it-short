@@ -30,20 +30,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	postgresPool, err := store.NewPostgresPool(ctx, cfg.DatabaseURL)
-	if err != nil {
-		log.Error("failed to initialize postgres", "error", err)
-		os.Exit(1)
-	}
+	supabaseClient := store.NewSupabaseClient(cfg.SupabaseURL, cfg.SupabaseKey)
 
 	redisClient, err := store.NewRedisClient(ctx, cfg.RedisURL)
 	if err != nil {
 		log.Error("failed to initialize redis", "error", err)
-		postgresPool.Close()
 		os.Exit(1)
 	}
 
-	apiServer := server.New(cfg, log, postgresPool, redisClient)
+	apiServer := server.New(cfg, log, supabaseClient, redisClient)
 
 	serverErr := make(chan error, 1)
 	go func() {

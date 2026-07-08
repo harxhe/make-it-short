@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/nedpals/supabase-go"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/makeitshort/backend/internal/config"
@@ -16,15 +16,15 @@ import (
 type Server struct {
 	httpServer *http.Server
 	logger     *slog.Logger
-	postgres   *pgxpool.Pool
+	supabase   *supabase.Client
 	redis      *redis.Client
 	baseURL    string
 }
 
-func New(cfg config.Config, logger *slog.Logger, postgres *pgxpool.Pool, redis *redis.Client) *Server {
+func New(cfg config.Config, logger *slog.Logger, sb *supabase.Client, redis *redis.Client) *Server {
 	s := &Server{
 		logger:   logger,
-		postgres: postgres,
+		supabase: sb,
 		redis:    redis,
 		baseURL:  cfg.BaseURL,
 	}
@@ -37,6 +37,7 @@ func New(cfg config.Config, logger *slog.Logger, postgres *pgxpool.Pool, redis *
 	})
 
 	r.Post("/api/shorten", s.handleShorten())
+	r.Get("/{id}", s.handleRedirect())
 
 	s.httpServer = &http.Server{
 		Addr:              ":" + cfg.Port,
@@ -69,9 +70,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 			s.logger.Error("failed to close redis client", "error", err)
 		}
 	}
-	if s.postgres != nil {
-		s.postgres.Close()
-	}
+
 
 	return shutdownErr
 }

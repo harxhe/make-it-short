@@ -7,6 +7,8 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	"github.com/nedpals/supabase-go"
 	"github.com/redis/go-redis/v9"
 
@@ -31,13 +33,30 @@ func New(cfg config.Config, logger *slog.Logger, sb *supabase.Client, redis *red
 
 	r := chi.NewRouter()
 
+	r.Use(middleware.Timeout(cfg.ReadTimeout + cfg.WriteTimeout))
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
+
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	r.Post("/api/shorten", s.handleShorten())
-	r.Get("/{id}", s.handleRedirect())
+	r.With(
+		requireJSONMiddleware,
+		bodySizeLimitMiddleware(2048),
+		rateLimitMiddleware(s.redis, cfg.RateLimitWriteRPS, cfg.RateLimitWriteBurst),
+	).Post("/api/shorten", s.handleShorten())
+
+	r.With(
+		rateLimitMiddleware(s.redis, cfg.RateLimitReadRPS, cfg.RateLimitReadBurst),
+	).Get("/{id}", s.handleRedirect())
 
 	s.httpServer = &http.Server{
 		Addr:              ":" + cfg.Port,

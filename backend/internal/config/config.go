@@ -22,6 +22,10 @@ type Config struct {
 	ReadTimeout        time.Duration
 	WriteTimeout       time.Duration
 	IdleTimeout        time.Duration
+	RateLimitWriteRPS  int
+	RateLimitWriteBurst int
+	RateLimitReadRPS   int
+	RateLimitReadBurst  int
 }
 
 func Load() (Config, error) {
@@ -70,6 +74,23 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	cfg.IdleTimeout = time.Duration(idleTimeoutSeconds) * time.Second
+
+	cfg.RateLimitWriteRPS, err = getEnvInt("RATE_LIMIT_WRITE_RPS", 10)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.RateLimitWriteBurst, err = getEnvInt("RATE_LIMIT_WRITE_BURST", 20)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.RateLimitReadRPS, err = getEnvInt("RATE_LIMIT_READ_RPS", 100)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.RateLimitReadBurst, err = getEnvInt("RATE_LIMIT_READ_BURST", 200)
+	if err != nil {
+		return Config{}, err
+	}
 
 	if cfg.SupabaseURL == "" || cfg.SupabaseKey == "" {
 		return Config{}, fmt.Errorf("SUPABASE_URL and SUPABASE_KEY are required")

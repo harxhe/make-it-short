@@ -1,4 +1,5 @@
 import { FormEvent, useState } from "react";
+import { BackgroundShapes } from "./BackgroundShapes";
 
 function CopyIcon() {
   return (
@@ -71,8 +72,9 @@ function App() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-5 py-10 text-black">
-      <section className="w-full max-w-4xl">
+    <main className="relative z-0 flex min-h-screen items-center justify-center px-5 pb-24 pt-10 text-black">
+      <BackgroundShapes />
+      <section className="relative z-10 w-full max-w-4xl">
         <div className="border-4 border-black bg-[#FFFFFF] p-6 shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] sm:p-10">
           <p className="mb-4 inline-block border-4 border-black bg-[#7cff65] px-3 py-1 text-sm font-black uppercase tracking-[0.2em] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             URL shortener
@@ -125,6 +127,38 @@ function App() {
           ) : null}
         </div>
       </section>
+
+      <footer className="absolute bottom-6 left-6 z-10 flex flex-col gap-2 font-bold uppercase text-black sm:bottom-8 sm:left-8">
+        <p className="inline-block w-max border-2 border-black bg-[#ff9900] px-2 py-1 text-xs tracking-widest shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:text-sm">
+          Made by Harxhe
+        </p>
+        <div className="flex gap-4 text-xs tracking-wider sm:text-sm">
+          <a
+            className="hover:underline hover:decoration-2 hover:underline-offset-4"
+            href="https://github.com/harxhe"
+            rel="noreferrer"
+            target="_blank"
+          >
+            GitHub
+          </a>
+          <a
+            className="hover:underline hover:decoration-2 hover:underline-offset-4"
+            href="https://www.linkedin.com/in/harxhe"
+            rel="noreferrer"
+            target="_blank"
+          >
+            LinkedIn
+          </a>
+          <a
+            className="hover:underline hover:decoration-2 hover:underline-offset-4"
+            href="https://www.harxhe.dev"
+            rel="noreferrer"
+            target="_blank"
+          >
+            Portfolio
+          </a>
+        </div>
+      </footer>
     </main>
   );
 }

@@ -10,11 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "matter-js": "^0.20.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.2",
+    "@types/matter-js": "^0.20.2",
     "@types/node": "^22.7.5",
     "@types/react": "^18.3.8",
     "@types/react-dom": "^18.3.0",

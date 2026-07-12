@@ -67,7 +67,8 @@ function App() {
       return;
     }
 
-    await navigator.clipboard.writeText(shortUrl);
+    const copyText = shortUrl.replace(/^https?:\/\//, "").replace(/^www\./, "");
+    await navigator.clipboard.writeText(copyText);
     setIsCopied(true);
   };
 
@@ -111,7 +112,7 @@ function App() {
                     className="mt-2 block break-all text-2xl font-black underline decoration-4 underline-offset-4"
                     href={shortUrl}
                   >
-                    {shortUrl}
+                    {shortUrl.replace(/^https?:\/\//, "").replace(/^www\./, "")}
                   </a>
                 </div>
                 <button

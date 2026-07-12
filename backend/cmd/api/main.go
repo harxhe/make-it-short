@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/joho/godotenv"
 	"github.com/makeitshort/backend/internal/config"
 	"github.com/makeitshort/backend/internal/logger"
 	"github.com/makeitshort/backend/internal/server"
@@ -15,6 +16,9 @@ import (
 )
 
 func main() {
+	// Automatically load the .env file from the root directory
+	_ = godotenv.Load("../.env")
+
 	ctx := context.Background()
 
 	cfg, err := config.Load()

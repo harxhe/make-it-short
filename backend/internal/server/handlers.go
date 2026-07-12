@@ -56,7 +56,6 @@ func (s *Server) handleShorten() http.HandlerFunc {
 		}
 
 		// Cache in Redis (48h TTL)
-		// We use 48 hours as requested in todo.md
 		err = s.redis.Set(ctx, "link:"+id, req.URL, 48*time.Hour).Err()
 		if err != nil {
 			s.logger.Error("failed to cache link in redis", "error", err)
@@ -87,7 +86,7 @@ func (s *Server) handleRedirect() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
 		if id == "" {
-			http.NotFound(w, r)
+			s.writeError(w, http.StatusNotFound, "link not found")
 			return
 		}
 
@@ -108,12 +107,12 @@ func (s *Server) handleRedirect() http.HandlerFunc {
 		err = s.supabase.DB.From("links").Select("original_url").Eq("id", id).Execute(&results)
 		if err != nil {
 			s.logger.Error("failed to query supabase for link", "error", err, "id", id)
-			http.NotFound(w, r) // You could potentially return 500 here, but let's assume it might not exist
+			s.writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 
 		if len(results) == 0 || results[0].OriginalURL == "" {
-			http.NotFound(w, r)
+			s.writeError(w, http.StatusNotFound, "link not found")
 			return
 		}
 
@@ -121,8 +120,6 @@ func (s *Server) handleRedirect() http.HandlerFunc {
 
 		// 3. Cache it back to Redis asynchronously to avoid blocking the redirect
 		go func(cacheID, url string) {
-			// Using a background context since request context will be cancelled
-			// Use the same 48h TTL as handleShorten
 			err := s.redis.Set(context.Background(), "link:"+cacheID, url, 48*time.Hour).Err()
 			if err != nil {
 				s.logger.Error("failed to cache link in redis after db lookup", "error", err)

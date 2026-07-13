@@ -5,6 +5,7 @@ import (
 	"mime"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-redis/redis_rate/v10"
 	"github.com/redis/go-redis/v9"
@@ -41,12 +42,12 @@ func bodySizeLimitMiddleware(maxBytes int64) func(http.Handler) http.Handler {
 }
 
 // rateLimitMiddleware applies a token bucket rate limit using Redis based on the client IP
-func rateLimitMiddleware(redisClient *redis.Client, rps, burst int) func(http.Handler) http.Handler {
+func rateLimitMiddleware(redisClient *redis.Client, rate, burst int, period time.Duration) func(http.Handler) http.Handler {
 	limiter := redis_rate.NewLimiter(redisClient)
 	limit := redis_rate.Limit{
-		Rate:   rps,
+		Rate:   rate,
 		Burst:  burst,
-		Period: 1, // Rate per 1 second
+		Period: period,
 	}
 
 	return func(next http.Handler) http.Handler {

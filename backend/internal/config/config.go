@@ -22,9 +22,9 @@ type Config struct {
 	ReadTimeout        time.Duration
 	WriteTimeout       time.Duration
 	IdleTimeout        time.Duration
-	RateLimitWriteRPS  int
+	RateLimitWriteLimit int
 	RateLimitWriteBurst int
-	RateLimitReadRPS   int
+	RateLimitReadLimit  int
 	RateLimitReadBurst  int
 }
 
@@ -75,15 +75,15 @@ func Load() (Config, error) {
 	}
 	cfg.IdleTimeout = time.Duration(idleTimeoutSeconds) * time.Second
 
-	cfg.RateLimitWriteRPS, err = getEnvInt("RATE_LIMIT_WRITE_RPS", 10)
+	cfg.RateLimitWriteLimit, err = getEnvInt("RATE_LIMIT_WRITE_LIMIT", 5)
 	if err != nil {
 		return Config{}, err
 	}
-	cfg.RateLimitWriteBurst, err = getEnvInt("RATE_LIMIT_WRITE_BURST", 20)
+	cfg.RateLimitWriteBurst, err = getEnvInt("RATE_LIMIT_WRITE_BURST", 5)
 	if err != nil {
 		return Config{}, err
 	}
-	cfg.RateLimitReadRPS, err = getEnvInt("RATE_LIMIT_READ_RPS", 100)
+	cfg.RateLimitReadLimit, err = getEnvInt("RATE_LIMIT_READ_LIMIT", 100)
 	if err != nil {
 		return Config{}, err
 	}

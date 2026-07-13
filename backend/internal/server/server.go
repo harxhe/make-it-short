@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -51,11 +52,11 @@ func New(cfg config.Config, logger *slog.Logger, sb *supabase.Client, redis *red
 	r.With(
 		requireJSONMiddleware,
 		bodySizeLimitMiddleware(2048),
-		rateLimitMiddleware(s.redis, cfg.RateLimitWriteRPS, cfg.RateLimitWriteBurst),
+		rateLimitMiddleware(s.redis, cfg.RateLimitWriteLimit, cfg.RateLimitWriteBurst, time.Minute),
 	).Post("/api/shorten", s.handleShorten())
 
 	r.With(
-		rateLimitMiddleware(s.redis, cfg.RateLimitReadRPS, cfg.RateLimitReadBurst),
+		rateLimitMiddleware(s.redis, cfg.RateLimitReadLimit, cfg.RateLimitReadBurst, time.Second),
 	).Get("/{id}", s.handleRedirect())
 
 	s.httpServer = &http.Server{

@@ -117,7 +117,12 @@ function App() {
       });
 
       if (!response.ok) {
-        console.error("Failed to shorten URL");
+        if (response.status === 429) {
+          setError("Whoa there! You've hit the rate limit. Please wait a minute before trying again.");
+        } else {
+          setError("Failed to shorten URL. Please try again.");
+          console.error("Failed to shorten URL");
+        }
         return;
       }
 

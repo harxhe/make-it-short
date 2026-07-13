@@ -30,6 +30,7 @@ function App() {
   const [url, setUrl] = useState("");
   const [shortUrl, setShortUrl] = useState("");
   const [isCopied, setIsCopied] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -39,6 +40,8 @@ function App() {
     if (!trimmedUrl) {
       return;
     }
+
+    setIsLoading(true);
 
     try {
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/shorten`, {
@@ -59,6 +62,8 @@ function App() {
       setIsCopied(false);
     } catch (error) {
       console.error("Error shortening URL:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -89,17 +94,49 @@ function App() {
 
           <form className="mt-8 flex flex-col gap-4 sm:flex-row" onSubmit={handleSubmit}>
             <input
-              className="min-w-0 flex-1 border-4 border-black bg-white px-5 py-4 text-base font-bold outline-none shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] placeholder:text-black/55 focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+              className="min-w-0 flex-1 border-4 border-black bg-white px-5 py-4 text-base font-bold outline-none shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] placeholder:text-black/55 focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] disabled:opacity-75 disabled:cursor-not-allowed"
               onChange={(event) => setUrl(event.target.value)}
               placeholder="https://really-long-link-you-want-to-shrink.com"
               type="url"
               value={url}
+              disabled={isLoading}
             />
             <button
-              className="border-4 border-black bg-[#00a6ff] px-8 py-4 text-lg font-black uppercase transition-transform duration-100 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[6px] active:translate-y-[6px] active:shadow-none"
+              className={`border-4 border-black bg-[#00a6ff] px-8 py-4 text-lg font-black uppercase transition-transform duration-100 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] ${
+                isLoading
+                  ? "cursor-not-allowed opacity-80"
+                  : "hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[6px] active:translate-y-[6px] active:shadow-none"
+              }`}
+              disabled={isLoading}
               type="submit"
             >
-              Shorten
+              {isLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg
+                    className="h-5 w-5 animate-spin"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      fill="currentColor"
+                    ></path>
+                  </svg>
+                  Shortening...
+                </span>
+              ) : (
+                "Shorten"
+              )}
             </button>
           </form>
 
